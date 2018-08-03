@@ -3,7 +3,6 @@ package weather;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.*;
-import org.junit.jupiter.api.AfterAll;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.w3c.dom.Attr;
@@ -28,54 +27,27 @@ public class WeatherApp
     WebDriver newsDriver;
     AccuweatherTester accuweather;
     News24Tester news24;
-    DocumentBuilderFactory docFactory;
-    DocumentBuilder docBuilder;
-    static Document doc;
-    Element rootElement;
-    static Transformer transformer;
-    static DOMSource source;
+    String[] arrMinAcu = new String[4];
+    String[] arrMaxAcu = new String[4];
+    String[] arrMinw24 = new String[4];
+    String[] arrMaxw24 = new String[4];
+    boolean[] resultsMin = new boolean[4];
+    boolean[] resultsMax = new boolean[4];
 
     public void compareDay(int day)
     {
-        // city elements
-        Element city = doc.createElement("city"+day);
-        rootElement.appendChild(city);
-
-        // day elements
-        Element eDay = doc.createElement("city"+day);
-        city.appendChild(eDay);
-
         String accuHigh = accuweather.getHigh(day);
         String newsHigh = news24.getHigh(day);
 
         String accuLow = accuweather.getLow(day);
         String newsLow = news24.getLow(day);
 
-        // max elements
-        Element max1 = doc.createElement("max1");
-        max1.appendChild(doc.createTextNode(accuHigh));
-        eDay.appendChild(max1);
-        Element max2 = doc.createElement("max2");
-        max2.appendChild(doc.createTextNode(newsHigh));
-        eDay.appendChild(max2);
-
-        // resultMax elements
-        Element resultMax = doc.createElement("result");
-        resultMax.appendChild(doc.createTextNode("" + accuHigh.equals(newsHigh)));
-        eDay.appendChild(resultMax);
-
-        // min elements
-        Element min1 = doc.createElement("min1");
-        min1.appendChild(doc.createTextNode(accuLow));
-        eDay.appendChild(min1);
-        Element min2 = doc.createElement("min2");
-        min2.appendChild(doc.createTextNode(newsLow));
-        eDay.appendChild(min2);
-
-        // resultMin elements
-        Element resultMin = doc.createElement("result");
-        resultMin.appendChild(doc.createTextNode("" + accuHigh.equals(newsHigh)));
-        eDay.appendChild(resultMin);
+        arrMinAcu[day-1] = accuLow;
+        arrMaxAcu[day-1] = accuHigh;
+        arrMinw24[day-1] = newsLow;
+        arrMaxw24[day-1] = newsHigh;
+        resultsMin[day-1] = accuHigh.equals(newsHigh);
+        resultsMin[day-1] = accuLow.equals(newsLow);
 
         Assert.assertTrue(accuHigh.equals(newsHigh));
         Assert.assertTrue(accuLow.equals(newsLow));
@@ -103,6 +75,18 @@ public class WeatherApp
     public void compareDay4Test()
     {
         compareDay(4);
+        try
+        {
+            XMLCreator.createXML(arrMinAcu, arrMaxAcu, arrMinw24, arrMaxw24, resultsMin, resultsMax);
+        }
+        catch (ParserConfigurationException pce)
+        {
+            pce.printStackTrace();
+        }
+        catch (TransformerException tfe)
+        {
+            tfe.printStackTrace();
+        }
     }
 
     @Before
@@ -110,37 +94,20 @@ public class WeatherApp
     {
         System.setProperty("webdriver.chrome.driver","C:/Drivers/chromedriver.exe");
         accuDriver = new ChromeDriver();
+        newsDriver = new ChromeDriver();
 
         accuDriver.manage().timeouts().implicitlyWait(120,TimeUnit.SECONDS);
         String weatherURL = "https://www.accuweather.com/en/za/pretoria/305449/daily-weather-forecast/305449";
         accuDriver.get(weatherURL);
 
-        accuweather = new AccuweatherTester(accuDriver);
-
-        newsDriver = new ChromeDriver();
-
         newsDriver.manage().timeouts().implicitlyWait(30,TimeUnit.SECONDS);
         String newsURL = "http://weather.news24.com/sa/pretoria";
         newsDriver.get(newsURL);
 
+        accuweather = new AccuweatherTester(accuDriver);
         news24 = new News24Tester(newsDriver);
 
         accuweather.setUpRows();
-
-        try
-        {
-            docFactory = DocumentBuilderFactory.newInstance();
-            docBuilder = docFactory.newDocumentBuilder();
-
-            // root elements
-            doc = docBuilder.newDocument();
-            rootElement = doc.createElement("Temperature");
-            doc.appendChild(rootElement);
-        }
-        catch (ParserConfigurationException pce)
-        {
-            pce.printStackTrace();
-        }
     }
 
     @After
@@ -148,29 +115,5 @@ public class WeatherApp
     {
         accuDriver.close();
         newsDriver.close();
-    }
-
-    @AfterAll
-    public static void tearDownTests()
-    {
-        try
-        {
-            // write the content into xml file
-            TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            transformer = transformerFactory.newTransformer();
-            source = new DOMSource(doc);
-            StreamResult result = new StreamResult(System.out);
-
-            // Output to console for testing
-            // StreamResult result = new StreamResult(System.out);
-
-            transformer.transform(source, result);
-
-            System.out.println("File saved!");
-        }
-        catch (TransformerException tfe)
-        {
-            tfe.printStackTrace();
-        }
     }
 }
